@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import MDEditor from '@uiw/react-md-editor';
 import { TagModal } from './TagModal';
 import { TagPill } from './TagPill';
 import type { Note, Tag } from '../types';
@@ -135,19 +136,18 @@ export function NoteModal({
             </div>
 
             <div>
-              <label htmlFor="note-content" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="note-content" className="block text-sm font-medium text-gray-700 mb-2">
                 Content <span className="text-red-500">*</span>
               </label>
-              <textarea
-                id="note-content"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                rows={10}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-y ${
-                  errors.content ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="Enter note content..."
-              />
+              <div className={errors.content ? 'border-2 border-red-500 rounded-lg' : ''} data-color-mode="light">
+                <MDEditor
+                  value={content}
+                  onChange={(val) => setContent(val || '')}
+                  preview="live"
+                  height={300}
+                  visibleDragbar={false}
+                />
+              </div>
               {errors.content && (
                 <p className="mt-1 text-sm text-red-500">{errors.content}</p>
               )}

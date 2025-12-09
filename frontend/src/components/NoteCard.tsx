@@ -1,6 +1,7 @@
 import type { Note } from '../types';
 import { getTagColor } from '../utils/color';
 import { formatRelativeTime, formatFullDateTime } from '../utils/date';
+import { MarkdownView } from './MarkdownView';
 
 interface NoteCardProps {
   note: Note;
@@ -62,15 +63,16 @@ export function NoteCard({ note, selected, onSelectChange, onOpen, viewMode = 'c
               onKeyDown={(e) => handleKeyDown(e, true)}
               aria-label={`Open note: ${note.title}`}
             />
-            <p
-              className="text-gray-600 text-sm truncate flex-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1"
-              dangerouslySetInnerHTML={{ __html: escapeHtml(note.content) }}
+            <div
+              className="text-gray-600 text-sm truncate flex-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1 line-clamp-1"
               tabIndex={0}
               role="button"
               onClick={onOpen}
               onKeyDown={(e) => handleKeyDown(e, true)}
               aria-label="Note content preview"
-            />
+            >
+              <MarkdownView content={truncateText(note.content, 100)} className="text-sm inline" />
+            </div>
             {note.tags.length > 0 && (
               <div className="flex gap-1 flex-shrink-0" role="list" aria-label="Tags">
                 {note.tags.slice(0, 3).map((tag, index) => {
@@ -108,18 +110,18 @@ export function NoteCard({ note, selected, onSelectChange, onOpen, viewMode = 'c
 
   return (
     <div
-      className={`bg-white border rounded-lg p-4 transition-all hover:shadow-md ${
+      className={`bg-white border rounded-lg p-4 transition-all hover:shadow-md flex flex-col h-full ${
         selected ? 'ring-2 ring-blue-500 border-blue-500' : 'border-gray-200'
       }`}
       role="article"
       aria-label={`Note: ${note.title}`}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-3 flex-1">
         <input
           type="checkbox"
           checked={selected}
           onChange={handleCheckboxChange}
-          className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+          className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 flex-shrink-0"
           aria-label={`Select note: ${note.title}`}
         />
         <div className="flex-1 min-w-0">
@@ -132,15 +134,16 @@ export function NoteCard({ note, selected, onSelectChange, onOpen, viewMode = 'c
             onKeyDown={(e) => handleKeyDown(e, true)}
             aria-label={`Open note: ${note.title}`}
           />
-          <p
-            className="text-gray-600 text-sm mb-3 whitespace-pre-wrap cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1"
-            dangerouslySetInnerHTML={{ __html: escapeHtml(truncateText(note.content, 150)) }}
+          <div
+            className="text-gray-600 text-sm mb-3 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1 line-clamp-3 overflow-hidden"
             tabIndex={0}
             role="button"
             onClick={onOpen}
             onKeyDown={(e) => handleKeyDown(e, true)}
             aria-label="Note content preview"
-          />
+          >
+            <MarkdownView content={truncateText(note.content, 150)} className="text-sm" />
+          </div>
 
           {note.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-3" role="list" aria-label="Tags">
@@ -159,14 +162,16 @@ export function NoteCard({ note, selected, onSelectChange, onOpen, viewMode = 'c
               })}
             </div>
           )}
+        </div>
+      </div>
 
-          <div
-            className="text-xs text-gray-500"
-            title={formatFullDateTime(note.updated_at)}
-            aria-label={`Updated ${formatFullDateTime(note.updated_at)}`}
-          >
-            Updated {formatRelativeTime(note.updated_at)}
-          </div>
+      <div className="flex justify-end">
+        <div
+          className="text-xs text-gray-500"
+          title={formatFullDateTime(note.updated_at)}
+          aria-label={`Updated ${formatFullDateTime(note.updated_at)}`}
+        >
+          Updated {formatRelativeTime(note.updated_at)}
         </div>
       </div>
     </div>
