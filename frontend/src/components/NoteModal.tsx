@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import MDEditor from '@uiw/react-md-editor';
 import { TagModal } from './TagModal';
 import { TagPill } from './TagPill';
+import { NoteInSchema, extractFieldErrors, isZodError } from '../api/schemas';
 import type { Note, Tag } from '../types';
 
 interface NoteModalProps {
@@ -46,18 +47,22 @@ export function NoteModal({
   if (!isOpen) return null;
 
   const validateForm = (): boolean => {
-    const newErrors: { title?: string; content?: string } = {};
-
-    if (!title.trim()) {
-      newErrors.title = 'Title is required';
+    try {
+      // Use Zod schema for validation
+      NoteInSchema.parse({
+        title,
+        content,
+        tags,
+      });
+      setErrors({});
+      return true;
+    } catch (error) {
+      if (isZodError(error)) {
+        const fieldErrors = extractFieldErrors(error);
+        setErrors(fieldErrors);
+      }
+      return false;
     }
-
-    if (!content.trim()) {
-      newErrors.content = 'Content is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
   const handleSave = async () => {

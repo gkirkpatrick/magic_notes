@@ -256,9 +256,7 @@ describe('TagModal', () => {
     }
   });
 
-  it('displays selected tags as removable pills', async () => {
-    const user = userEvent.setup();
-
+  it('displays selected tags as removable pills', () => {
     render(
       <TagModal
         isOpen={true}

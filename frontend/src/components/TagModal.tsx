@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TagPill } from './TagPill';
+import { TagInSchema } from '../api/schemas';
 import type { Tag } from '../types';
 
 interface TagModalProps {
@@ -55,11 +56,14 @@ export function TagModal({
 
     setIsCreating(true);
     try {
-      await onCreateTag(filterText.trim());
-      setLocalSelectedTags(prev => [...prev, filterText.trim()]);
+      // Validate tag name with Zod before creating
+      const validatedData = TagInSchema.parse({ name: filterText });
+      await onCreateTag(validatedData.name);
+      setLocalSelectedTags(prev => [...prev, validatedData.name]);
       setFilterText('');
     } catch (error) {
       console.error('Failed to create tag:', error);
+      // TODO: Show validation error to user
     } finally {
       setIsCreating(false);
     }

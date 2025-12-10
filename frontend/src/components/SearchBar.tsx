@@ -4,6 +4,13 @@ interface SearchBarProps {
   onChange: (searchText: string, includeTitle: boolean) => void;
 }
 
+/**
+ * Search bar component for filtering notes by content and optionally title.
+ *
+ * @param searchText - Current search query text
+ * @param includeTitle - Whether to search in note titles as well as content
+ * @param onChange - Callback fired when search text or includeTitle changes
+ */
 export function SearchBar({ searchText, includeTitle, onChange }: SearchBarProps) {
   return (
     <div className="flex flex-col gap-2">

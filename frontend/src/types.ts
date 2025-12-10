@@ -1,16 +1,9 @@
-export interface Note {
-  id: number;
-  title: string;
-  content: string;
-  tags: string[];
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Tag {
-  id: number;
-  name: string;
-}
+/**
+ * Re-export Zod-validated types from schemas
+ * This maintains backward compatibility while ensuring
+ * all types come from the single source of truth
+ */
+export type { NoteOut as Note, NoteIn, Tag, TagIn } from './api/schemas';
 
 export interface NoteFilters {
   bodyText: string;
@@ -18,18 +11,9 @@ export interface NoteFilters {
   tags: string[];
 }
 
-export interface CreateNoteDTO {
-  title: string;
-  content: string;
-  tags: string[];
-}
+// Legacy aliases for backward compatibility
+export type CreateNoteDTO = NoteIn;
+export type UpdateNoteDTO = NoteIn;
+export type CreateTagDTO = TagIn;
 
-export interface UpdateNoteDTO {
-  title: string;
-  content: string;
-  tags: string[];
-}
-
-export interface CreateTagDTO {
-  name: string;
-}
+import type { NoteIn, TagIn } from './api/schemas';

@@ -103,7 +103,7 @@ describe('NoteList', () => {
   });
 
   it('select all checkbox is checked when all notes selected', () => {
-    const { container } = render(
+    render(
       <NoteList
         notes={mockNotes}
         selectedNoteIds={new Set([1, 2, 3])}

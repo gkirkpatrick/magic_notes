@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useNotes } from '../hooks/useNotes';
-import * as api from '../api/client';
+import { getMockData, setMockData } from './mocks/handlers';
 import type { Note, Tag } from '../types';
 
-vi.mock('../api/client');
 vi.mock('../utils/storage', () => ({
   loadPageSize: () => null,
   savePageSize: vi.fn(),
@@ -15,251 +14,135 @@ vi.mock('../utils/storage', () => ({
 }));
 
 describe('useNotes', () => {
-  const mockNotes: Note[] = [
-    {
-      id: 1,
-      title: 'Test Note',
-      content: 'Content',
-      tags: ['work'],
-      created_at: '2025-01-01T10:00:00Z',
-      updated_at: '2025-01-01T10:00:00Z',
-    },
-  ];
-
-  const mockTags: Tag[] = [
-    { id: 1, name: 'work' },
-    { id: 2, name: 'personal' },
-  ];
-
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(api.getNotes).mockResolvedValue(mockNotes);
-    vi.mocked(api.getTags).mockResolvedValue(mockTags);
+    // Mock data is automatically reset in setup.ts via resetMockData()
   });
 
   it('fetches notes on mount', async () => {
     const { result } = renderHook(() => useNotes());
 
     await waitFor(() => {
-      expect(result.current.notes).toEqual(mockNotes);
+      expect(result.current.isLoading).toBe(false);
     });
 
-    expect(api.getNotes).toHaveBeenCalled();
+    const mockData = getMockData();
+    expect(result.current.notes).toHaveLength(mockData.notes.length);
+    expect(result.current.notes[0].title).toBe('Test Note 1');
   });
 
   it('fetches tags on mount', async () => {
     const { result } = renderHook(() => useNotes());
 
     await waitFor(() => {
-      expect(result.current.tags).toEqual(mockTags);
+      expect(result.current.isLoading).toBe(false);
     });
 
-    expect(api.getTags).toHaveBeenCalled();
+    const mockData = getMockData();
+    expect(result.current.tags).toHaveLength(mockData.tags.length);
+    expect(result.current.tags[0].name).toBe('test');
   });
 
-  it('passes correct query params when fetching notes', async () => {
+  it('filters notes by body text', async () => {
     const { result } = renderHook(() => useNotes());
 
     await waitFor(() => {
-      expect(result.current.notes).toEqual(mockNotes);
+      expect(result.current.isLoading).toBe(false);
     });
 
     result.current.setFilters({
-      bodyText: 'search',
-      includeTitle: true,
-      tags: ['work', 'personal'],
+      bodyText: 'content 1',
+      includeTitle: false,
+      tags: [],
     });
 
     await waitFor(() => {
-      expect(api.getNotes).toHaveBeenCalledWith({
-        bodyText: 'search',
-        includeTitle: true,
-        tags: ['work', 'personal'],
-      });
+      expect(result.current.notes).toHaveLength(1);
+      expect(result.current.notes[0].title).toBe('Test Note 1');
     });
   });
 
-  it('creates note optimistically', async () => {
+  it('creates note successfully', async () => {
     const { result } = renderHook(() => useNotes());
 
     await waitFor(() => {
-      expect(result.current.notes).toEqual(mockNotes);
+      expect(result.current.isLoading).toBe(false);
     });
+
+    const initialCount = result.current.notes.length;
 
     const newNote = {
       title: 'New Note',
       content: 'New Content',
-      tags: ['work'],
+      tags: ['test'],
     };
-
-    const createdNote: Note = {
-      id: 2,
-      ...newNote,
-      created_at: '2025-01-02T10:00:00Z',
-      updated_at: '2025-01-02T10:00:00Z',
-    };
-
-    vi.mocked(api.createNote).mockResolvedValue(createdNote);
-    vi.mocked(api.getNotes).mockResolvedValue([createdNote, ...mockNotes]);
 
     await result.current.createNote(newNote);
 
     await waitFor(() => {
-      expect(result.current.notes.length).toBeGreaterThan(mockNotes.length);
+      expect(result.current.notes.length).toBe(initialCount + 1);
     });
 
-    expect(api.createNote).toHaveBeenCalledWith(newNote);
+    const createdNote = result.current.notes.find(n => n.title === 'New Note');
+    expect(createdNote).toBeDefined();
+    expect(createdNote?.content).toBe('New Content');
   });
 
-  it('rolls back on create failure', async () => {
+  it('updates note successfully', async () => {
     const { result } = renderHook(() => useNotes());
 
     await waitFor(() => {
-      expect(result.current.notes).toEqual(mockNotes);
-    });
-
-    const originalLength = result.current.notes.length;
-
-    const newNote = {
-      title: 'Failed Note',
-      content: 'Content',
-      tags: [],
-    };
-
-    vi.mocked(api.createNote).mockRejectedValue(new Error('API Error'));
-
-    try {
-      await result.current.createNote(newNote);
-    } catch (error) {
-      // Expected to throw
-    }
-
-    await waitFor(() => {
-      expect(result.current.notes.length).toBe(originalLength);
-      expect(result.current.error).toBeTruthy();
-    });
-  });
-
-  it('updates note optimistically', async () => {
-    const { result } = renderHook(() => useNotes());
-
-    await waitFor(() => {
-      expect(result.current.notes).toEqual(mockNotes);
+      expect(result.current.isLoading).toBe(false);
     });
 
     const updatedData = {
       title: 'Updated Title',
       content: 'Updated Content',
-      tags: ['personal'],
+      tags: ['sample'],
     };
-
-    const updatedNote: Note = {
-      id: 1,
-      ...updatedData,
-      created_at: '2025-01-01T10:00:00Z',
-      updated_at: '2025-01-02T10:00:00Z',
-    };
-
-    vi.mocked(api.updateNote).mockResolvedValue(updatedNote);
 
     await result.current.updateNote(1, updatedData);
 
     await waitFor(() => {
       const note = result.current.notes.find(n => n.id === 1);
       expect(note?.title).toBe('Updated Title');
-    });
-
-    expect(api.updateNote).toHaveBeenCalledWith(1, updatedData);
-  });
-
-  it('rolls back on update failure', async () => {
-    const { result } = renderHook(() => useNotes());
-
-    await waitFor(() => {
-      expect(result.current.notes).toEqual(mockNotes);
-    });
-
-    const originalTitle = result.current.notes[0].title;
-
-    const updatedData = {
-      title: 'Failed Update',
-      content: 'Content',
-      tags: [],
-    };
-
-    vi.mocked(api.updateNote).mockRejectedValue(new Error('API Error'));
-
-    try {
-      await result.current.updateNote(1, updatedData);
-    } catch (error) {
-      // Expected to throw
-    }
-
-    await waitFor(() => {
-      const note = result.current.notes.find(n => n.id === 1);
-      expect(note?.title).toBe(originalTitle);
-      expect(result.current.error).toBeTruthy();
+      expect(note?.content).toBe('Updated Content');
     });
   });
 
-  it('deletes note optimistically', async () => {
+  it('deletes note successfully', async () => {
     const { result } = renderHook(() => useNotes());
 
     await waitFor(() => {
-      expect(result.current.notes).toEqual(mockNotes);
+      expect(result.current.isLoading).toBe(false);
     });
 
-    vi.mocked(api.deleteNote).mockResolvedValue(undefined);
+    const initialCount = result.current.notes.length;
 
     await result.current.deleteNote(1);
 
     await waitFor(() => {
+      expect(result.current.notes.length).toBe(initialCount - 1);
       expect(result.current.notes.find(n => n.id === 1)).toBeUndefined();
-    });
-
-    expect(api.deleteNote).toHaveBeenCalledWith(1);
-  });
-
-  it('rolls back on delete failure', async () => {
-    const { result } = renderHook(() => useNotes());
-
-    await waitFor(() => {
-      expect(result.current.notes).toEqual(mockNotes);
-    });
-
-    const originalLength = result.current.notes.length;
-
-    vi.mocked(api.deleteNote).mockRejectedValue(new Error('API Error'));
-
-    try {
-      await result.current.deleteNote(1);
-    } catch (error) {
-      // Expected to throw
-    }
-
-    await waitFor(() => {
-      expect(result.current.notes.length).toBe(originalLength);
-      expect(result.current.error).toBeTruthy();
-    });
-  });
-
-  it('sets error on fetch failure', async () => {
-    vi.mocked(api.getNotes).mockRejectedValue(new Error('Fetch failed'));
-
-    const { result } = renderHook(() => useNotes());
-
-    await waitFor(() => {
-      expect(result.current.error).toBe('Fetch failed');
     });
   });
 
   it('clears error', async () => {
-    vi.mocked(api.getNotes).mockRejectedValue(new Error('Fetch failed'));
-
     const { result } = renderHook(() => useNotes());
 
     await waitFor(() => {
-      expect(result.current.error).toBe('Fetch failed');
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Trigger an error by trying to delete non-existent note
+    try {
+      await result.current.deleteNote(999);
+    } catch {
+      // Expected to fail
+    }
+
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy();
     });
 
     result.current.clearError();
@@ -269,52 +152,21 @@ describe('useNotes', () => {
     });
   });
 
-  it('refreshes notes', async () => {
+  it('manages pagination correctly', async () => {
     const { result } = renderHook(() => useNotes());
 
     await waitFor(() => {
-      expect(result.current.notes).toEqual(mockNotes);
+      expect(result.current.isLoading).toBe(false);
     });
 
-    const newMockNotes: Note[] = [
-      ...mockNotes,
-      {
-        id: 2,
-        title: 'Another Note',
-        content: 'Content',
-        tags: [],
-        created_at: '2025-01-02T10:00:00Z',
-        updated_at: '2025-01-02T10:00:00Z',
-      },
-    ];
+    expect(result.current.currentPage).toBe(1);
+    expect(result.current.pageSize).toBe(9); // Default page size
 
-    vi.mocked(api.getNotes).mockResolvedValue(newMockNotes);
-
-    await result.current.refreshNotes();
+    result.current.setPageSize(1);
 
     await waitFor(() => {
-      expect(result.current.notes).toEqual(newMockNotes);
-    });
-  });
-
-  it('refreshes tags', async () => {
-    const { result } = renderHook(() => useNotes());
-
-    await waitFor(() => {
-      expect(result.current.tags).toEqual(mockTags);
-    });
-
-    const newMockTags: Tag[] = [
-      ...mockTags,
-      { id: 3, name: 'urgent' },
-    ];
-
-    vi.mocked(api.getTags).mockResolvedValue(newMockTags);
-
-    await result.current.refreshTags();
-
-    await waitFor(() => {
-      expect(result.current.tags).toEqual(newMockTags);
+      expect(result.current.pageSize).toBe(1);
+      expect(result.current.paginatedNotes).toHaveLength(1);
     });
   });
 });

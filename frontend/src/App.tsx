@@ -59,6 +59,7 @@ function App() {
         includeTitle: savedIncludeTitle,
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only on mount
 
   const handleTagFilterChange = useCallback((selectedTags: string[]) => {
