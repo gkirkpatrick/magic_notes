@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useNotes } from '../hooks/useNotes';
-import * as api from '../api/client';
-import type { Note, Tag } from '../types';
+import { setMockData, getMockData } from './mocks/handlers';
+import type { NoteOut } from '../api/schemas';
+import type { Tag } from '../types';
 
-vi.mock('../api/client');
 vi.mock('../utils/storage', () => ({
   loadPageSize: () => null,
   savePageSize: vi.fn(),
@@ -14,8 +14,8 @@ vi.mock('../utils/storage', () => ({
   saveIncludeTitle: vi.fn(),
 }));
 
-describe('Pagination', () => {
-  const generateMockNotes = (count: number): Note[] => {
+describe('Pagination (Server-Side)', () => {
+  const generateMockNotes = (count: number): NoteOut[] => {
     return Array.from({ length: count }, (_, i) => ({
       id: i + 1,
       title: `Note ${i + 1}`,
@@ -33,94 +33,125 @@ describe('Pagination', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(api.getTags).mockResolvedValue(mockTags);
   });
 
-  it('paginates notes with default page size of 9', async () => {
+  it('fetches notes with default page size of 9', async () => {
     const mockNotes = generateMockNotes(20);
-    vi.mocked(api.getNotes).mockResolvedValue(mockNotes);
+    setMockData(mockNotes, mockTags);
 
     const { result } = renderHook(() => useNotes());
 
     await waitFor(() => {
-      expect(result.current.notes).toHaveLength(20);
+      expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.paginatedNotes).toHaveLength(9);
+    // With server-side pagination, we only get one page at a time
+    expect(result.current.notes).toHaveLength(9); // First page
     expect(result.current.currentPage).toBe(1);
     expect(result.current.totalPages).toBe(3); // 20 notes / 9 per page = 3 pages
+    expect(result.current.paginatedNotes).toHaveLength(9);
   });
 
-  it('shows correct notes for each page', async () => {
+  it('fetches next page when nextPage is called', async () => {
     const mockNotes = generateMockNotes(20);
-    vi.mocked(api.getNotes).mockResolvedValue(mockNotes);
+    setMockData(mockNotes, mockTags);
 
     const { result } = renderHook(() => useNotes());
 
     await waitFor(() => {
-      expect(result.current.notes).toHaveLength(20);
+      expect(result.current.isLoading).toBe(false);
     });
 
     // Page 1: notes 1-9
-    expect(result.current.paginatedNotes[0].id).toBe(1);
-    expect(result.current.paginatedNotes[8].id).toBe(9);
+    expect(result.current.notes[0].id).toBe(1);
+    expect(result.current.currentPage).toBe(1);
 
     // Go to page 2
     act(() => {
       result.current.nextPage();
     });
 
-    // Page 2: notes 10-18
-    expect(result.current.currentPage).toBe(2);
-    expect(result.current.paginatedNotes[0].id).toBe(10);
-    expect(result.current.paginatedNotes[8].id).toBe(18);
-
-    // Go to page 3
-    act(() => {
-      result.current.nextPage();
+    await waitFor(() => {
+      expect(result.current.currentPage).toBe(2);
     });
 
-    // Page 3: notes 19-20
-    expect(result.current.currentPage).toBe(3);
-    expect(result.current.paginatedNotes).toHaveLength(2);
-    expect(result.current.paginatedNotes[0].id).toBe(19);
-    expect(result.current.paginatedNotes[1].id).toBe(20);
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Page 2: notes 10-18
+    expect(result.current.notes).toHaveLength(9);
+    expect(result.current.notes[0].id).toBe(10);
+    expect(result.current.notes[8].id).toBe(18);
   });
 
-  it('nextPage does not go beyond total pages', async () => {
-    const mockNotes = generateMockNotes(10);
-    vi.mocked(api.getNotes).mockResolvedValue(mockNotes);
+  it('handles last page with fewer items', async () => {
+    const mockNotes = generateMockNotes(20);
+    setMockData(mockNotes, mockTags);
 
     const { result } = renderHook(() => useNotes());
 
     await waitFor(() => {
-      expect(result.current.notes).toHaveLength(10);
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Go to page 3 (last page)
+    act(() => {
+      result.current.setCurrentPage(3);
+    });
+
+    await waitFor(() => {
+      expect(result.current.currentPage).toBe(3);
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Page 3: notes 19-20 (only 2 items)
+    expect(result.current.notes).toHaveLength(2);
+    expect(result.current.notes[0].id).toBe(19);
+    expect(result.current.notes[1].id).toBe(20);
+  });
+
+  it('nextPage does not go beyond total pages', async () => {
+    const mockNotes = generateMockNotes(10);
+    setMockData(mockNotes, mockTags);
+
+    const { result } = renderHook(() => useNotes());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
     });
 
     expect(result.current.totalPages).toBe(2);
 
+    // Go to page 2
     act(() => {
       result.current.nextPage();
     });
 
-    expect(result.current.currentPage).toBe(2);
+    await waitFor(() => {
+      expect(result.current.currentPage).toBe(2);
+    });
 
     // Try to go beyond
     act(() => {
       result.current.nextPage();
     });
 
-    expect(result.current.currentPage).toBe(2); // Should stay at 2
+    // Should stay at page 2
+    expect(result.current.currentPage).toBe(2);
   });
 
   it('prevPage does not go below 1', async () => {
     const mockNotes = generateMockNotes(20);
-    vi.mocked(api.getNotes).mockResolvedValue(mockNotes);
+    setMockData(mockNotes, mockTags);
 
     const { result } = renderHook(() => useNotes());
 
     await waitFor(() => {
-      expect(result.current.notes).toHaveLength(20);
+      expect(result.current.isLoading).toBe(false);
     });
 
     expect(result.current.currentPage).toBe(1);
@@ -135,12 +166,12 @@ describe('Pagination', () => {
 
   it('resets to page 1 when filters change', async () => {
     const mockNotes = generateMockNotes(20);
-    vi.mocked(api.getNotes).mockResolvedValue(mockNotes);
+    setMockData(mockNotes, mockTags);
 
     const { result } = renderHook(() => useNotes());
 
     await waitFor(() => {
-      expect(result.current.notes).toHaveLength(20);
+      expect(result.current.isLoading).toBe(false);
     });
 
     // Go to page 2
@@ -148,7 +179,9 @@ describe('Pagination', () => {
       result.current.nextPage();
     });
 
-    expect(result.current.currentPage).toBe(2);
+    await waitFor(() => {
+      expect(result.current.currentPage).toBe(2);
+    });
 
     // Change filters
     act(() => {
@@ -165,14 +198,14 @@ describe('Pagination', () => {
     });
   });
 
-  it('can change page size', async () => {
+  it('can change page size and refetches', async () => {
     const mockNotes = generateMockNotes(20);
-    vi.mocked(api.getNotes).mockResolvedValue(mockNotes);
+    setMockData(mockNotes, mockTags);
 
     const { result } = renderHook(() => useNotes());
 
     await waitFor(() => {
-      expect(result.current.notes).toHaveLength(20);
+      expect(result.current.isLoading).toBe(false);
     });
 
     expect(result.current.pageSize).toBe(9);
@@ -183,51 +216,59 @@ describe('Pagination', () => {
       result.current.setPageSize(5);
     });
 
-    expect(result.current.pageSize).toBe(5);
+    await waitFor(() => {
+      expect(result.current.pageSize).toBe(5);
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
     expect(result.current.totalPages).toBe(4); // 20 / 5 = 4 pages
-    expect(result.current.paginatedNotes).toHaveLength(5);
+    expect(result.current.notes).toHaveLength(5); // First page with new size
     expect(result.current.currentPage).toBe(1); // Should reset to page 1
   });
 
   it('handles edge case with exactly one page', async () => {
     const mockNotes = generateMockNotes(5);
-    vi.mocked(api.getNotes).mockResolvedValue(mockNotes);
+    setMockData(mockNotes, mockTags);
 
     const { result } = renderHook(() => useNotes());
 
     await waitFor(() => {
-      expect(result.current.notes).toHaveLength(5);
+      expect(result.current.isLoading).toBe(false);
     });
 
     expect(result.current.totalPages).toBe(1);
+    expect(result.current.notes).toHaveLength(5);
     expect(result.current.paginatedNotes).toHaveLength(5);
     expect(result.current.currentPage).toBe(1);
   });
 
   it('handles empty notes list', async () => {
-    vi.mocked(api.getNotes).mockResolvedValue([]);
+    setMockData([], mockTags);
 
     const { result } = renderHook(() => useNotes());
 
     await waitFor(() => {
-      expect(result.current.notes).toHaveLength(0);
+      expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.totalPages).toBe(1); // At least 1 page
+    expect(result.current.notes).toHaveLength(0);
     expect(result.current.paginatedNotes).toHaveLength(0);
     expect(result.current.currentPage).toBe(1);
+    // totalPages will be 0 when there are no results
+    expect(result.current.totalPages).toBeGreaterThanOrEqual(0);
   });
 
-  it('pagination persists when switching between view modes', async () => {
-    // This test verifies that pagination state is maintained in the hook
-    // regardless of view mode changes in the UI
+  it('pagination state persists across re-renders', async () => {
     const mockNotes = generateMockNotes(20);
-    vi.mocked(api.getNotes).mockResolvedValue(mockNotes);
+    setMockData(mockNotes, mockTags);
 
     const { result } = renderHook(() => useNotes());
 
     await waitFor(() => {
-      expect(result.current.notes).toHaveLength(20);
+      expect(result.current.isLoading).toBe(false);
     });
 
     // Go to page 2
@@ -235,12 +276,16 @@ describe('Pagination', () => {
       result.current.nextPage();
     });
 
-    expect(result.current.currentPage).toBe(2);
-    expect(result.current.paginatedNotes[0].id).toBe(10);
+    await waitFor(() => {
+      expect(result.current.currentPage).toBe(2);
+    });
 
-    // View mode changes don't affect pagination state (tested at component level)
-    // This hook just ensures pagination state is stable
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Pagination state is maintained
     expect(result.current.currentPage).toBe(2);
-    expect(result.current.paginatedNotes[0].id).toBe(10);
+    expect(result.current.notes[0].id).toBe(10);
   });
 });

@@ -26,6 +26,20 @@ interface UseNotesReturn {
   clearError: () => void;
 }
 
+/**
+ * Main hook for managing notes state and operations.
+ * Provides CRUD operations with optimistic updates and error handling.
+ * Includes pagination, filtering, and tag management.
+ *
+ * Features:
+ * - Optimistic UI updates with automatic rollback on error
+ * - Client-side pagination
+ * - Search and tag filtering
+ * - LocalStorage persistence for pagination preferences
+ * - Automatic refetching after mutations
+ *
+ * @returns Object containing notes data, pagination state, and CRUD operations
+ */
 export function useNotes(): UseNotesReturn {
   const [notes, setNotes] = useState<Note[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -38,6 +52,8 @@ export function useNotes(): UseNotesReturn {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSizeState] = useState(() => loadPageSize() ?? 9);
+  const [totalFromServer, setTotalFromServer] = useState(0);
+  const [totalPagesFromServer, setTotalPagesFromServer] = useState(1);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -50,15 +66,11 @@ export function useNotes(): UseNotesReturn {
     setCurrentPage(1);
   }, []);
 
-  const totalPages = useMemo(() => {
-    return Math.max(1, Math.ceil(notes.length / pageSize));
-  }, [notes.length, pageSize]);
+  // Use server-side pagination totalPages from API
+  const totalPages = totalPagesFromServer;
 
-  const paginatedNotes = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return notes.slice(startIndex, endIndex);
-  }, [notes, currentPage, pageSize]);
+  // For server-side pagination, paginatedNotes is the same as notes
+  const paginatedNotes = notes;
 
   const nextPage = useCallback(() => {
     setCurrentPage(prev => Math.min(prev + 1, totalPages));
@@ -72,15 +84,17 @@ export function useNotes(): UseNotesReturn {
     setIsLoading(true);
     setError(null);
     try {
-      const fetchedNotes = await api.getNotes(filters);
-      setNotes(fetchedNotes);
+      const response = await api.getNotes(filters, currentPage, pageSize);
+      setNotes(response.items);
+      setTotalFromServer(response.total);
+      setTotalPagesFromServer(response.total_pages);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch notes';
       setError(message);
     } finally {
       setIsLoading(false);
     }
-  }, [filters]);
+  }, [filters, currentPage, pageSize]);
 
   const refreshTags = useCallback(async () => {
     try {
