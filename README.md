@@ -62,7 +62,30 @@ A full-stack notes application with markdown support, tagging, search, and serve
 - **Python 3.11+** and pip
 - **Git**
 
-### Backend Setup
+### Quick Start (Recommended)
+
+Run the automated setup script that handles everything:
+
+```bash
+./dev.sh
+```
+
+This script will:
+- Create and activate a Python virtual environment
+- Install all backend dependencies
+- Run database migrations
+- Prompt to create a Django superuser (optional)
+- Install all frontend dependencies
+- Create .env files if needed
+- Start both backend (port 8000) and frontend (port 5173) servers
+
+Press `Ctrl+C` to stop both servers.
+
+### Manual Setup
+
+If you prefer to set up manually:
+
+#### Backend Setup
 
 1. Navigate to the backend directory:
    ```bash
@@ -92,7 +115,7 @@ A full-stack notes application with markdown support, tagging, search, and serve
 
 The backend API will be available at `http://localhost:8000/api`
 
-### Frontend Setup
+#### Frontend Setup
 
 1. Navigate to the frontend directory:
    ```bash
