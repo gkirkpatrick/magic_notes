@@ -54,7 +54,7 @@ async function handleResponse<T>(
       throw new APIError(
         `API response validation failed: ${formatZodError(error)}`,
         response.status,
-        { validationErrors: error.errors, responseData: data }
+        { validationErrors: error.issues, responseData: data }
       );
     }
     throw error;

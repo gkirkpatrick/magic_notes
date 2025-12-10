@@ -116,8 +116,8 @@ export function isZodError(error: unknown): error is z.ZodError {
 /**
  * Format Zod validation errors into a user-friendly error message
  */
-export function formatZodError(error: z.ZodError<unknown>): string {
-  return error.errors
+export function formatZodError(error: z.ZodError): string {
+  return error.issues
     .map((err: z.ZodIssue) => {
       const path = err.path.join(".");
       return path ? `${path}: ${err.message}` : err.message;
@@ -130,11 +130,11 @@ export function formatZodError(error: z.ZodError<unknown>): string {
  * Useful for form validation
  */
 export function extractFieldErrors(
-  error: z.ZodError<unknown>
+  error: z.ZodError
 ): Record<string, string> {
   const fieldErrors: Record<string, string> = {};
-  if (error && error.errors && Array.isArray(error.errors)) {
-    error.errors.forEach((err: z.ZodIssue) => {
+  if (error && error.issues && Array.isArray(error.issues)) {
+    error.issues.forEach((err: z.ZodIssue) => {
       const field = err.path[0];
       if (field && typeof field === "string") {
         fieldErrors[field] = err.message;
