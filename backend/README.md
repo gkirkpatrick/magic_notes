@@ -22,9 +22,11 @@ A Django-based REST API for a notes application with tagging support. Built with
 - Advanced search and filtering (by title, content, tags)
 - Tag filtering with OR semantics (find notes with ANY of the specified tags)
 - Pagination support (configurable page size, max 100 items per page)
-- Comprehensive test suite (27 tests)
+- Django admin interface with comprehensive list/detail views
+- Comprehensive test suite (38 tests)
 - CORS support for frontend integration
 - Database indexes for common query patterns
+- Code quality tools (Black, flake8)
 
 ## Tech Stack
 
@@ -51,12 +53,15 @@ backend/
 │   ├── models.py
 │   ├── schemas.py
 │   ├── api.py
+│   ├── admin.py
 │   ├── migrations/
 │   │   └── __init__.py
 │   └── tests/
 │       ├── __init__.py
 │       └── test_api.py
 ├── requirements.txt
+├── pyproject.toml       # Black configuration
+├── .flake8              # Flake8 configuration
 └── README.md
 ```
 
@@ -318,13 +323,14 @@ python manage.py test --verbosity=2
 
 ### Test Coverage
 
-The test suite covers:
+The test suite (38 tests) covers:
 - Note CRUD operations
 - Tag creation and normalization
-- Search and filtering (title, content, tags)
-- Tag intersection searches
+- Search and filtering (title, content, tags with OR semantics)
+- Pagination (default, custom page size, limits, with filters)
 - Validation (empty fields, max lengths)
-- Edge cases (duplicate tags, shared tags across notes)
+- Edge cases (duplicate tags, empty tags, special characters, unicode, 404 handling)
+- Tag idempotency and response codes
 
 ## Production Deployment
 
@@ -344,16 +350,16 @@ gunicorn config.wsgi:application --bind 0.0.0.0:8000
 
 Before deploying to production:
 
-1. **Change SECRET_KEY** in `config/settings.py`
-2. **Set DEBUG = False** in `config/settings.py`
-3. **Configure ALLOWED_HOSTS** properly
-4. **Use PostgreSQL or MySQL** instead of SQLite
-5. **Set up static file serving** with a reverse proxy (nginx/Apache)
-6. **Enable HTTPS** with SSL certificates
-7. **Configure proper CORS settings** for your frontend domain
-8. **Set up database backups**
-9. **Configure logging** for production monitoring
-10. **Use environment variables** for sensitive settings
+1. **Set environment variables** for secrets:
+   - `DJANGO_SECRET_KEY`: Strong secret key (not the default)
+   - `DJANGO_DEBUG`: Set to 'False' for production
+2. **Configure ALLOWED_HOSTS** properly
+3. **Use PostgreSQL or MySQL** instead of SQLite
+4. **Set up static file serving** with a reverse proxy (nginx/Apache)
+5. **Enable HTTPS** with SSL certificates
+6. **Configure proper CORS settings** for your frontend domain
+7. **Set up database backups**
+8. **Configure logging** for production monitoring
 
 ### Example Nginx Configuration
 
@@ -376,13 +382,14 @@ server {
 
 ## CORS Configuration
 
-The backend is configured to accept requests from `http://localhost:5173` (Vite dev server) by default.
+The backend is configured to accept requests from `http://localhost:5173` and `http://localhost:5174` (Vite dev servers) by default.
 
 To add additional origins, edit `config/settings.py`:
 
 ```python
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
+    'http://localhost:5174',
     'https://your-production-domain.com',
 ]
 ```
@@ -391,18 +398,46 @@ CORS_ALLOWED_ORIGINS = [
 
 Django's admin interface is available at `http://localhost:8000/admin/`
 
-To access it:
+### Features
+- **Note Management**: View all notes with ID, title, content preview, tags, and timestamps
+- **Tag Management**: View all tags with usage counts
+- **Filtering**: Filter notes by creation date, update date, and tags
+- **Search**: Search notes by title and content
+- **Horizontal Tag Selector**: Easy multi-tag selection interface
+- **Date Hierarchy**: Navigate notes by update date
+
+### Access
 1. Create a superuser: `python manage.py createsuperuser`
-2. Start the server and navigate to the admin URL
+2. Start the server and navigate to `http://localhost:8000/admin/`
 3. Log in with your superuser credentials
 
 ## Development
+
+### Code Quality Tools
+
+The project uses Black for code formatting and flake8 for linting:
+
+```bash
+# Format code with Black (120 char line limit)
+black .
+
+# Check code style with flake8
+flake8
+
+# Both are configured in pyproject.toml and .flake8
+```
+
+Configuration:
+- **Black**: 120 character line limit, configured in `pyproject.toml`
+- **Flake8**: 120 character line limit, excludes venv and migrations, configured in `.flake8`
 
 ### Adding New Endpoints
 
 1. Define schemas in `notes/schemas.py`
 2. Implement endpoint logic in `notes/api.py`
 3. Add tests in `notes/tests/test_api.py`
+4. Run `black .` to format code
+5. Run `flake8` to check for linting issues
 
 ### Database Migrations
 
