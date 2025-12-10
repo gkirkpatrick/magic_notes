@@ -79,21 +79,15 @@ echo -e "${YELLOW}Running database migrations...${NC}"
 python manage.py migrate --no-input
 echo -e "${GREEN}✓ Migrations complete${NC}"
 
-# Check if superuser exists, if not prompt to create one
+# Check if superuser exists
 echo ""
 echo -e "${YELLOW}Checking for Django superuser...${NC}"
-python manage.py shell -c "from django.contrib.auth import get_user_model; User = get_user_model(); exit(0 if User.objects.filter(is_superuser=True).exists() else 1)" 2>/dev/null
-if [ $? -ne 0 ]; then
-    echo -e "${YELLOW}No superuser found.${NC}"
-    echo -e "${YELLOW}Would you like to create a superuser now? (y/n)${NC}"
-    read -r response
-    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-        python manage.py createsuperuser
-    else
-        echo -e "${YELLOW}Skipping superuser creation. You can create one later with: python manage.py createsuperuser${NC}"
-    fi
-else
+if python manage.py shell -c "from django.contrib.auth import get_user_model; User = get_user_model(); exit(0 if User.objects.filter(is_superuser=True).exists() else 1)" 2>/dev/null; then
     echo -e "${GREEN}✓ Superuser exists${NC}"
+else
+    echo -e "${YELLOW}No superuser found.${NC}"
+    echo -e "${YELLOW}To access the admin interface (http://localhost:8000/admin), create one with:${NC}"
+    echo -e "${YELLOW}  cd backend && source venv/bin/activate && python manage.py createsuperuser${NC}"
 fi
 
 echo ""
