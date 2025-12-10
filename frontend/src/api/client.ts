@@ -1,11 +1,9 @@
 import { z } from 'zod';
 import {
   NoteOutSchema,
-  NoteListSchema,
-  PaginatedNotesSchema,
   NoteInSchema,
+  PaginatedNotesSchema,
   TagSchema,
-  TagListSchema,
   TagInSchema,
   formatZodError,
   type NoteOut,

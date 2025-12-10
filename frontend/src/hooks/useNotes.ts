@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Note, Tag, CreateNoteDTO, UpdateNoteDTO, NoteFilters } from '../types';
 import * as api from '../api/client';
 import { loadPageSize, savePageSize } from '../utils/storage';
@@ -52,7 +52,6 @@ export function useNotes(): UseNotesReturn {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSizeState] = useState(() => loadPageSize() ?? 9);
-  const [totalFromServer, setTotalFromServer] = useState(0);
   const [totalPagesFromServer, setTotalPagesFromServer] = useState(1);
 
   // Reset to page 1 when filters change
@@ -86,7 +85,6 @@ export function useNotes(): UseNotesReturn {
     try {
       const response = await api.getNotes(filters, currentPage, pageSize);
       setNotes(response.items);
-      setTotalFromServer(response.total);
       setTotalPagesFromServer(response.total_pages);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch notes';

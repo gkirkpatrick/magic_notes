@@ -99,21 +99,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [backend-test-and-lint, frontend-test-and-lint]
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: notes_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
       - uses: actions/checkout@v4
 
@@ -136,16 +121,12 @@ jobs:
       - name: Run migrations
         run: python manage.py migrate
         working-directory: backend
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/notes_test
 
       - name: Start backend server
         run: |
           python manage.py runserver 8000 &
           sleep 5
         working-directory: backend
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/notes_test
 
       - name: Install frontend dependencies
         run: npm ci

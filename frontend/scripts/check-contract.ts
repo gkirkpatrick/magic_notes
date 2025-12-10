@@ -19,7 +19,6 @@
 import { z } from 'zod';
 import {
   NoteOutSchema,
-  NoteListSchema,
   PaginatedNotesSchema,
   NoteInSchema,
   TagSchema,
@@ -32,7 +31,7 @@ interface CheckResult {
   name: string;
   passed: boolean;
   error?: string;
-  details?: any;
+  details?: unknown;
 }
 
 interface ContractCheckOptions {
@@ -76,7 +75,7 @@ class ContractChecker {
     method: string,
     path: string,
     schema: z.ZodSchema<T>,
-    body?: any
+    body?: unknown
   ): Promise<void> {
     const url = `${this.options.apiUrl}${path}`;
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useNotes } from '../hooks/useNotes';
-import { setMockData, getMockData } from './mocks/handlers';
+import { setMockData } from './mocks/handlers';
 import type { NoteOut } from '../api/schemas';
 import type { Tag } from '../types';
 
