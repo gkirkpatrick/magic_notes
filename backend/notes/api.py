@@ -1,23 +1,26 @@
 from typing import List, Optional
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+from django.core.paginator import Paginator
 from ninja import NinjaAPI, Query
 from notes.models import Note, Tag, normalize_tag_name
-from notes.schemas import NoteIn, NoteOut, TagIn, TagOut
+from notes.schemas import NoteIn, NoteOut, TagIn, TagOut, PaginatedNotesOut
 
 
 api = NinjaAPI()
 
 
-@api.get("/notes/", response=List[NoteOut])
+@api.get("/notes/", response=PaginatedNotesOut)
 def list_notes(
     request,
     body_text: Optional[str] = Query(None),
     title_text: Optional[str] = Query(None),
     tags: Optional[List[str]] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
 ):
     """
-    List all notes with optional filtering.
+    List all notes with optional filtering and pagination.
 
     Filters:
     - body_text: substring match on content (case-insensitive)
@@ -25,9 +28,13 @@ def list_notes(
     - If both body_text and title_text are provided, uses OR logic (matches either)
     - tags: list of tag names (OR semantics - note must have at least one of the tags)
 
+    Pagination:
+    - page: page number (default: 1, min: 1)
+    - page_size: items per page (default: 50, min: 1, max: 100)
+
     Results are ordered by updated_at DESC.
     """
-    qs = Note.objects.all().prefetch_related('tags')
+    qs = Note.objects.all().prefetch_related("tags")
 
     # Filter by content and/or title using OR logic
     text_filters = Q()
@@ -58,9 +65,19 @@ def list_notes(
             qs = qs.filter(tags__name__in=normalized_tags).distinct()
 
     # Order by updated_at DESC
-    qs = qs.order_by('-updated_at')
+    qs = qs.order_by("-updated_at")
 
-    return [NoteOut.from_note(note) for note in qs]
+    # Paginate results
+    paginator = Paginator(qs, page_size)
+    page_obj = paginator.get_page(page)
+
+    return PaginatedNotesOut(
+        items=[NoteOut.from_note(note) for note in page_obj],
+        total=paginator.count,
+        page=page,
+        page_size=page_size,
+        total_pages=paginator.num_pages,
+    )
 
 
 @api.get("/notes/{note_id}", response=NoteOut)
@@ -80,10 +97,7 @@ def create_note(request, payload: NoteIn):
     Tags are created if they don't exist.
     """
     # Create the note
-    note = Note.objects.create(
-        title=payload.title,
-        content=payload.content
-    )
+    note = Note.objects.create(title=payload.title, content=payload.content)
 
     # Handle tags
     tag_objects = []
@@ -137,16 +151,18 @@ def list_tags(request):
     """
     List all tags sorted by name ascending.
     """
-    tags = Tag.objects.all().order_by('name')
+    tags = Tag.objects.all().order_by("name")
     return [TagOut.from_orm(tag) for tag in tags]
 
 
-@api.post("/tags/", response=TagOut)
+@api.post("/tags/", response={200: TagOut, 201: TagOut})
 def create_tag(request, payload: TagIn):
     """
     Create a new tag or return existing one if it already exists.
     Tag names are normalized (stripped and lowercased).
+    Returns 201 for new tags, 200 for existing tags.
     """
     # The payload.name is already normalized by the TagIn validator
     tag, created = Tag.objects.get_or_create(name=payload.name)
-    return TagOut.from_orm(tag)
+    status_code = 201 if created else 200
+    return status_code, TagOut.from_orm(tag)

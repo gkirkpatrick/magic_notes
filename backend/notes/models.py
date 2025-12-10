@@ -13,10 +13,14 @@ class Tag(models.Model):
     Tag model for categorizing notes.
     Tag names are normalized (stripped and lowercased) and enforced as unique.
     """
-    name = models.CharField(max_length=100, unique=True)
+
+    name = models.CharField(max_length=100, unique=True, db_index=True)
 
     class Meta:
-        ordering = ['name']
+        ordering = ["name"]
+        indexes = [
+            models.Index(fields=["name"]),
+        ]
 
     def __str__(self):
         return self.name
@@ -31,14 +35,20 @@ class Note(models.Model):
     """
     Note model representing a single note with title, content, and tags.
     """
-    title = models.CharField(max_length=200)
+
+    title = models.CharField(max_length=200, db_index=True)
     content = models.TextField()
-    tags = models.ManyToManyField(Tag, blank=True, related_name='notes')
+    tags = models.ManyToManyField(Tag, blank=True, related_name="notes")
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(auto_now=True, db_index=True)
 
     class Meta:
-        ordering = ['-updated_at']
+        ordering = ["-updated_at"]
+        indexes = [
+            models.Index(fields=["-updated_at"]),
+            models.Index(fields=["title"]),
+            models.Index(fields=["created_at"]),
+        ]
 
     def __str__(self):
         return self.title

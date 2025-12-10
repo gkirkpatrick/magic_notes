@@ -1,25 +1,27 @@
 from datetime import datetime
 from typing import List
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, field_validator
 from notes.models import normalize_tag_name
 
 
 class TagIn(BaseModel):
     """Schema for creating/updating tags."""
+
     name: str
 
-    @field_validator('name')
+    @field_validator("name")
     @classmethod
     def normalize_and_validate_name(cls, v: str) -> str:
         """Strip whitespace, lowercase, and ensure non-empty."""
         normalized = normalize_tag_name(v)
         if not normalized:
-            raise ValueError('Tag name cannot be empty or whitespace-only')
+            raise ValueError("Tag name cannot be empty or whitespace-only")
         return normalized
 
 
 class TagOut(BaseModel):
     """Schema for tag responses."""
+
     id: int
     name: str
 
@@ -29,33 +31,34 @@ class TagOut(BaseModel):
 
 class NoteIn(BaseModel):
     """Schema for creating/updating notes."""
+
     title: str
     content: str
     tags: List[str] = []
 
-    @field_validator('title')
+    @field_validator("title")
     @classmethod
     def validate_title(cls, v: str) -> str:
         """Strip whitespace and ensure non-empty, max 200 chars."""
         stripped = v.strip()
         if not stripped:
-            raise ValueError('Title cannot be empty or whitespace-only')
+            raise ValueError("Title cannot be empty or whitespace-only")
         if len(stripped) > 200:
-            raise ValueError('Title cannot exceed 200 characters')
+            raise ValueError("Title cannot exceed 200 characters")
         return stripped
 
-    @field_validator('content')
+    @field_validator("content")
     @classmethod
     def validate_content(cls, v: str) -> str:
         """Strip whitespace and ensure non-empty, max 10,000 chars."""
         stripped = v.strip()
         if not stripped:
-            raise ValueError('Content cannot be empty or whitespace-only')
+            raise ValueError("Content cannot be empty or whitespace-only")
         if len(stripped) > 10000:
-            raise ValueError('Content cannot exceed 10,000 characters')
+            raise ValueError("Content cannot exceed 10,000 characters")
         return stripped
 
-    @field_validator('tags')
+    @field_validator("tags")
     @classmethod
     def normalize_tags(cls, v: List[str]) -> List[str]:
         """Normalize tags: strip, lowercase, remove empties, deduplicate."""
@@ -71,6 +74,7 @@ class NoteIn(BaseModel):
 
 class NoteOut(BaseModel):
     """Schema for note responses."""
+
     id: int
     title: str
     content: str
@@ -92,3 +96,13 @@ class NoteOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PaginatedNotesOut(BaseModel):
+    """Schema for paginated note list responses."""
+
+    items: List[NoteOut]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

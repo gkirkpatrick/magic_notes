@@ -2,14 +2,29 @@
 
 A Django-based REST API for a notes application with tagging support. Built with Django 5.x, Django Ninja, and SQLite.
 
+> **⚠️ IMPORTANT: This is a demonstration project and NOT production-ready.**
+>
+> This project was built as a coding sample to demonstrate Django/API development skills. Before using in production, you would need to address:
+> - **Authentication & Authorization**: No user authentication or authorization system
+> - **Multi-tenancy**: No user isolation - all notes are shared
+> - **Security hardening**: SECRET_KEY management, security middleware, HTTPS enforcement
+> - **Database**: Production-grade database (PostgreSQL/MySQL) instead of SQLite
+> - **Rate limiting**: API throttling and abuse prevention
+> - **Monitoring & logging**: Structured logging, error tracking, performance monitoring
+> - **Deployment infrastructure**: Load balancing, auto-scaling, health checks
+> - **Data validation**: Additional edge case handling and data sanitization
+> - **Testing**: Load testing, security testing, integration testing with real databases
+
 ## Features
 
 - Full CRUD operations for notes
 - Tag management with automatic normalization (lowercase, stripped)
 - Advanced search and filtering (by title, content, tags)
-- Tag intersection search (find notes with ALL specified tags)
-- Comprehensive test suite
+- Tag filtering with OR semantics (find notes with ANY of the specified tags)
+- Pagination support (configurable page size, max 100 items per page)
+- Comprehensive test suite (27 tests)
 - CORS support for frontend integration
+- Database indexes for common query patterns
 
 ## Tech Stack
 
@@ -92,18 +107,23 @@ The API will be available at `http://localhost:8000/api/`
 ### Notes
 
 #### `GET /api/notes/`
-List all notes with optional filtering.
+List all notes with optional filtering and pagination.
 
 **Query Parameters:**
 - `body_text` (optional): Filter by content substring (case-insensitive)
 - `title_text` (optional): Filter by title substring (case-insensitive)
 - When both `body_text` and `title_text` are provided, uses **OR logic** (returns notes matching either field)
 - `tags` (optional, multiple): Filter by tag names (OR semantics - returns notes with at least one of the specified tags)
+- `page` (optional): Page number (default: 1, min: 1)
+- `page_size` (optional): Items per page (default: 50, min: 1, max: 100)
 
 **Example:**
 ```bash
-# Get all notes
+# Get all notes (first page, 50 items)
 curl http://localhost:8000/api/notes/
+
+# Get second page with 20 items per page
+curl http://localhost:8000/api/notes/?page=2&page_size=20
 
 # Filter by content
 curl http://localhost:8000/api/notes/?body_text=Django
@@ -117,22 +137,28 @@ curl http://localhost:8000/api/notes/?body_text=greg&title_text=greg
 # Filter by tags (notes with python OR tutorial tags)
 curl http://localhost:8000/api/notes/?tags=python&tags=tutorial
 
-# Combine text and tag filters
-curl http://localhost:8000/api/notes/?title_text=Guide&tags=django
+# Combine text and tag filters with pagination
+curl http://localhost:8000/api/notes/?title_text=Guide&tags=django&page=1&page_size=10
 ```
 
 **Response:**
 ```json
-[
-  {
-    "id": 1,
-    "title": "My Note",
-    "content": "Note content here",
-    "tags": ["work", "important"],
-    "created_at": "2025-12-09T10:00:00Z",
-    "updated_at": "2025-12-09T10:00:00Z"
-  }
-]
+{
+  "items": [
+    {
+      "id": 1,
+      "title": "My Note",
+      "content": "Note content here",
+      "tags": ["work", "important"],
+      "created_at": "2025-12-09T10:00:00Z",
+      "updated_at": "2025-12-09T10:00:00Z"
+    }
+  ],
+  "total": 100,
+  "page": 1,
+  "page_size": 50,
+  "total_pages": 2
+}
 ```
 
 #### `GET /api/notes/{id}`
@@ -229,7 +255,7 @@ Create a new tag or return existing one.
 }
 ```
 
-**Response:** `200 OK`
+**Response:** `201 Created` (for new tag) or `200 OK` (for existing tag)
 ```json
 {
   "id": 1,
@@ -237,7 +263,7 @@ Create a new tag or return existing one.
 }
 ```
 
-**Note:** Tag names are automatically normalized (lowercased and trimmed). Creating a tag with a name that already exists returns the existing tag.
+**Note:** Tag names are automatically normalized (lowercased and trimmed). Creating a tag with a name that already exists returns the existing tag with a 200 status code.
 
 ## Data Model
 
