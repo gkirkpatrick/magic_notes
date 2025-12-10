@@ -4,6 +4,7 @@ import {
   NoteInSchema,
   PaginatedNotesSchema,
   TagSchema,
+  TagListSchema,
   TagInSchema,
   formatZodError,
   type NoteOut,
